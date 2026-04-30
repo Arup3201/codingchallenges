@@ -4,19 +4,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 )
 
 func main() {
 	/*
-		Usage: wc -c FILE
+		Usage: wc -c -l FILE
 	*/
 
 	if len(os.Args) >= 3 {
-		var option string
+		var options []string
 		var filename string
 
-		option = os.Args[1]
-		filename = os.Args[2]
+		options = os.Args[1 : len(os.Args)-1]
+		filename = os.Args[len(os.Args)-1]
 
 		var f *os.File
 		var err error
@@ -27,28 +28,37 @@ func main() {
 		}
 		defer f.Close()
 
-		if option == "-c" {
+		_, err = f.Seek(0, io.SeekStart)
+		if err != nil {
+			fmt.Printf("Error encountered while starting: %s\n", err)
+			return
+		}
 
-			_, err = f.Seek(0, io.SeekStart)
-			if err != nil {
-				fmt.Printf("Error encountered while starting: %s\n", err)
+		var b = make([]byte, 1)
+		var bytesCnt, linesCnt uint64
+		for {
+			_, err = f.Read(b)
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				fmt.Printf("Error encountered while scanning the file: %s\n", err)
 				return
 			}
 
-			var b = make([]byte, 1)
-			var cnt uint64 = 0
-			for {
-				_, err = f.Read(b)
-				if err == io.EOF {
-					break
-				} else if err != nil {
-					fmt.Printf("Error encountered while scanning the file: %s\n", err)
-					return
-				}
-				cnt += 1
+			if b[0] == '\n' {
+				linesCnt += 1
 			}
 
-			fmt.Printf("%d %s\n", cnt, filename)
+			bytesCnt += 1
 		}
+
+		if slices.Contains(options, "-c") {
+			fmt.Printf("%d ", bytesCnt)
+		}
+		if slices.Contains(options, "-l") {
+			fmt.Printf("%d ", linesCnt)
+		}
+
+		fmt.Printf(" %s\n", filename)
 	}
 }
