@@ -35,7 +35,7 @@ func main() {
 		}
 
 		var b = make([]byte, 1)
-		var bytesCnt, linesCnt uint64
+		var bytesCnt, linesCnt, wordsCnt uint64
 		for {
 			_, err = f.Read(b)
 			if err == io.EOF {
@@ -43,6 +43,10 @@ func main() {
 			} else if err != nil {
 				fmt.Printf("Error encountered while scanning the file: %s\n", err)
 				return
+			}
+
+			if b[0] == ' ' {
+				wordsCnt += 1
 			}
 
 			if b[0] == '\n' {
@@ -57,6 +61,9 @@ func main() {
 		}
 		if slices.Contains(options, "-l") {
 			fmt.Printf("%d ", linesCnt)
+		}
+		if slices.Contains(options, "-w") {
+			fmt.Printf("%d ", wordsCnt)
 		}
 
 		fmt.Printf(" %s\n", filename)
