@@ -5,11 +5,12 @@ import (
 	"io"
 	"os"
 	"slices"
+	"unicode/utf8"
 )
 
 func main() {
 	/*
-		Usage: wc -c -l FILE
+		Usage: wc -c -m -w -l FILE
 	*/
 
 	if len(os.Args) >= 3 {
@@ -34,10 +35,14 @@ func main() {
 			return
 		}
 
-		var b = make([]byte, 1)
-		var bytesCnt, linesCnt, wordsCnt uint64
+		var container = make([]byte, 1)
+		var bytesCnt,
+			charsCnt,
+			wordsCnt,
+			linesCnt uint64
+		var ch []byte // single or multi-byte character (UTF-8)
 		for {
-			_, err = f.Read(b)
+			_, err = f.Read(container)
 			if err == io.EOF {
 				break
 			} else if err != nil {
@@ -45,27 +50,36 @@ func main() {
 				return
 			}
 
-			if b[0] == ' ' {
+			bytesCnt += 1
+
+			ch = append(ch, container[0])
+			if utf8.FullRune(ch) {
+				charsCnt += 1
+				ch = []byte{}
+			}
+
+			if container[0] == ' ' {
 				wordsCnt += 1
 			}
 
-			if b[0] == '\n' {
+			if container[0] == '\n' {
 				linesCnt += 1
 			}
-
-			bytesCnt += 1
 		}
 
 		if slices.Contains(options, "-c") {
 			fmt.Printf("%d ", bytesCnt)
 		}
-		if slices.Contains(options, "-l") {
-			fmt.Printf("%d ", linesCnt)
+		if slices.Contains(options, "-m") {
+			fmt.Printf("%d ", charsCnt)
 		}
 		if slices.Contains(options, "-w") {
 			fmt.Printf("%d ", wordsCnt)
 		}
+		if slices.Contains(options, "-l") {
+			fmt.Printf("%d ", linesCnt)
+		}
 
-		fmt.Printf(" %s\n", filename)
+		fmt.Printf("%s\n", filename)
 	}
 }
