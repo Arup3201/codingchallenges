@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"slices"
 	"unicode/utf8"
 )
 
@@ -38,26 +37,7 @@ func main() {
 		hasLineFlag = true
 	}
 
-	var filenames []string
-
-	var filterFn = func(s []string, cmp func(r string) bool) []string {
-		ret := []string{}
-		for _, r := range s {
-			if cmp(r) {
-				ret = append(ret, r)
-			}
-		}
-		return ret
-	}
-
-	filenames = filterFn(os.Args[1:], func(r string) bool {
-		return !slices.Contains([]string{
-			BYTE_FLAG,
-			CHARACTER_FLAG,
-			WORD_FLAG,
-			LINE_FLAG,
-		}, r)
-	})
+	var filenames = flag.CommandLine.Args()
 
 	var f *os.File
 	var err error
