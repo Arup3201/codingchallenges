@@ -16,6 +16,81 @@ const (
 	LINE_FLAG      = "-l"
 )
 
+type wcStruct struct {
+	bytes,
+	chars,
+	words,
+	lines uint64
+}
+
+func getCounts(f *os.File) (*wcStruct, error) {
+	var err error
+	var container = make([]byte, 1)
+	var bytesCnt,
+		charsCnt,
+		wordsCnt,
+		linesCnt uint64
+	var ch []byte         // store bytes to check if they make valid UTF-8 character
+	var prevByte byte = 0 // tracks previous byte to detect word or not
+	var SPACE_BYTES = []byte{
+		'\t',
+		'\n',
+		'\v',
+		'\f',
+		'\r',
+		' ',
+		133, // NEW LINE
+		160, // NO-BREAK SPACE
+	}
+	for {
+		_, err = f.Read(container)
+		if err == io.EOF {
+			// the last word ending with EOF
+			if prevByte != 0 && !bytes.Contains(
+				SPACE_BYTES,
+				[]byte{prevByte},
+			) {
+				wordsCnt += 1
+			}
+
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("Read: %s\n", err)
+		}
+
+		bytesCnt += 1
+
+		ch = append(ch, container[0])
+		if utf8.FullRune(ch) {
+			charsCnt += 1
+			ch = []byte{}
+		}
+
+		if prevByte != 0 && !bytes.Contains(
+			SPACE_BYTES,
+			[]byte{prevByte},
+		) && bytes.Contains(
+			SPACE_BYTES,
+			container,
+		) {
+			wordsCnt += 1
+		}
+
+		if container[0] == '\n' {
+			linesCnt += 1
+		}
+
+		prevByte = container[0]
+	}
+
+	return &wcStruct{
+		bytes: bytesCnt,
+		chars: charsCnt,
+		words: wordsCnt,
+		lines: linesCnt,
+	}, nil
+}
+
 func main() {
 	var (
 		hasByteFlag      = false
@@ -41,23 +116,7 @@ func main() {
 
 	var f *os.File
 	var err error
-	var container = make([]byte, 1)
-	var bytesCnt,
-		charsCnt,
-		wordsCnt,
-		linesCnt uint64
-	var ch []byte         // store bytes to check if they make valid UTF-8 character
-	var prevByte byte = 0 // tracks previous byte to detect word or not
-	var SPACE_BYTES = []byte{
-		'\t',
-		'\n',
-		'\v',
-		'\f',
-		'\r',
-		' ',
-		133, // NEW LINE
-		160, // NO-BREAK SPACE
-	}
+	var wcCnts *wcStruct
 	for _, fn := range filenames {
 		f, err = os.OpenFile(fn, os.O_RDONLY, os.ModePerm)
 		if err != nil {
@@ -72,65 +131,23 @@ func main() {
 			continue
 		}
 
-		bytesCnt,
-			charsCnt,
-			wordsCnt,
-			linesCnt = 0, 0, 0, 0
-		ch = []byte{}
-		prevByte = 0
-		for {
-			_, err = f.Read(container)
-			if err == io.EOF {
-				// the last word ending with EOF
-				if prevByte != 0 && !bytes.Contains(
-					SPACE_BYTES,
-					[]byte{prevByte},
-				) {
-					wordsCnt += 1
-				}
-
-				break
-			} else if err != nil {
-				fmt.Printf("Read: %s\n", err)
-				continue
-			}
-
-			bytesCnt += 1
-
-			ch = append(ch, container[0])
-			if utf8.FullRune(ch) {
-				charsCnt += 1
-				ch = []byte{}
-			}
-
-			if prevByte != 0 && !bytes.Contains(
-				SPACE_BYTES,
-				[]byte{prevByte},
-			) && bytes.Contains(
-				SPACE_BYTES,
-				container,
-			) {
-				wordsCnt += 1
-			}
-
-			if container[0] == '\n' {
-				linesCnt += 1
-			}
-
-			prevByte = container[0]
+		wcCnts, err = getCounts(f)
+		if err != nil {
+			fmt.Printf("getCounts: %s\n", err)
+			continue
 		}
 
 		if hasByteFlag {
-			fmt.Printf("c:%d ", bytesCnt)
+			fmt.Printf("c:%d ", wcCnts.bytes)
 		}
 		if hasCharacterFlag {
-			fmt.Printf("m:%d ", charsCnt)
+			fmt.Printf("m:%d ", wcCnts.chars)
 		}
 		if hasWordFlag {
-			fmt.Printf("w:%d ", wordsCnt)
+			fmt.Printf("w:%d ", wcCnts.words)
 		}
 		if hasLineFlag {
-			fmt.Printf("l:%d ", linesCnt)
+			fmt.Printf("l:%d ", wcCnts.lines)
 		}
 
 		fmt.Printf("%s\n", fn)
@@ -138,64 +155,23 @@ func main() {
 
 	// Take from STDIN
 	if len(filenames) == 0 {
-		bytesCnt,
-			charsCnt,
-			wordsCnt,
-			linesCnt = 0, 0, 0, 0
-		ch = []byte{}
-		prevByte = 0
-		for {
-			_, err = os.Stdin.Read(container)
-			if err == io.EOF {
-				if prevByte != 0 && !bytes.Contains(
-					SPACE_BYTES,
-					[]byte{prevByte},
-				) {
-					wordsCnt += 1
-				}
-
-				break
-			} else if err != nil {
-				fmt.Printf("Read: %s\n", err)
-				continue
-			}
-
-			bytesCnt += 1
-
-			ch = append(ch, container[0])
-			if utf8.FullRune(ch) {
-				charsCnt += 1
-				ch = []byte{}
-			}
-
-			if prevByte != 0 && !bytes.Contains(
-				SPACE_BYTES,
-				[]byte{prevByte},
-			) && bytes.Contains(
-				SPACE_BYTES,
-				container,
-			) {
-				wordsCnt += 1
-			}
-
-			if container[0] == '\n' {
-				linesCnt += 1
-			}
-
-			prevByte = container[0]
+		wcCnts, err = getCounts(os.Stdin)
+		if err != nil {
+			fmt.Printf("getCounts: %s\n", err)
+			return
 		}
 
 		if hasByteFlag {
-			fmt.Printf("c:%d ", bytesCnt)
+			fmt.Printf("c:%d ", wcCnts.bytes)
 		}
 		if hasCharacterFlag {
-			fmt.Printf("m:%d ", charsCnt)
+			fmt.Printf("m:%d ", wcCnts.chars)
 		}
 		if hasWordFlag {
-			fmt.Printf("w:%d ", wordsCnt)
+			fmt.Printf("w:%d ", wcCnts.words)
 		}
 		if hasLineFlag {
-			fmt.Printf("l:%d ", linesCnt)
+			fmt.Printf("l:%d ", wcCnts.lines)
 		}
 
 		fmt.Printf("\n")
