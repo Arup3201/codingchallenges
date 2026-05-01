@@ -151,4 +151,69 @@ func main() {
 
 		fmt.Printf("%s\n", fn)
 	}
+
+	// Take from STDIN
+	if len(filenames) == 0 {
+		bytesCnt,
+			charsCnt,
+			wordsCnt,
+			linesCnt = 0, 0, 0, 0
+		ch = []byte{}
+		prevByte = 0
+		for {
+			_, err = os.Stdin.Read(container)
+			if err == io.EOF {
+				if prevByte != 0 && !bytes.Contains(
+					SPACE_BYTES,
+					[]byte{prevByte},
+				) {
+					wordsCnt += 1
+				}
+
+				break
+			} else if err != nil {
+				fmt.Printf("Read: %s\n", err)
+				continue
+			}
+
+			bytesCnt += 1
+
+			ch = append(ch, container[0])
+			if utf8.FullRune(ch) {
+				charsCnt += 1
+				ch = []byte{}
+			}
+
+			if prevByte != 0 && !bytes.Contains(
+				SPACE_BYTES,
+				[]byte{prevByte},
+			) && bytes.Contains(
+				SPACE_BYTES,
+				container,
+			) {
+				wordsCnt += 1
+			}
+
+			if container[0] == '\n' {
+				linesCnt += 1
+			}
+
+			prevByte = container[0]
+		}
+
+		if noFlag || hasByteFlag {
+			fmt.Printf("c:%d ", bytesCnt)
+		}
+		if hasCharacterFlag {
+			fmt.Printf("m:%d ", charsCnt)
+		}
+		if noFlag || hasWordFlag {
+			fmt.Printf("w:%d ", wordsCnt)
+		}
+		if noFlag || hasLineFlag {
+			fmt.Printf("l:%d ", linesCnt)
+		}
+
+		fmt.Printf("\n")
+	}
 }
