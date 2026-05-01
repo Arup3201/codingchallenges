@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -17,25 +18,27 @@ const (
 )
 
 func main() {
-	/*
-		Usage: wc -c -m -w -l FILE
-	*/
-
 	var (
 		hasByteFlag      = false
 		hasCharacterFlag = false
 		hasWordFlag      = false
 		hasLineFlag      = false
-		noFlag           = false
 	)
 
-	var filenames []string
+	flag.BoolVar(&hasByteFlag, "c", false, "print bytes count")
+	flag.BoolVar(&hasCharacterFlag, "m", false, "print characters count")
+	flag.BoolVar(&hasWordFlag, "w", false, "print words count")
+	flag.BoolVar(&hasLineFlag, "l", false, "print lines count")
 
-	hasByteFlag = slices.Contains(os.Args, BYTE_FLAG)
-	hasCharacterFlag = slices.Contains(os.Args, CHARACTER_FLAG)
-	hasWordFlag = slices.Contains(os.Args, WORD_FLAG)
-	hasLineFlag = slices.Contains(os.Args, LINE_FLAG)
-	noFlag = !(hasByteFlag || hasCharacterFlag || hasWordFlag || hasLineFlag)
+	flag.Parse()
+
+	if !(hasByteFlag || hasCharacterFlag || hasWordFlag || hasLineFlag) {
+		hasByteFlag = true
+		hasWordFlag = true
+		hasLineFlag = true
+	}
+
+	var filenames []string
 
 	var filterFn = func(s []string, cmp func(r string) bool) []string {
 		ret := []string{}
@@ -63,8 +66,8 @@ func main() {
 		charsCnt,
 		wordsCnt,
 		linesCnt uint64
-	var ch []byte // single or multi-byte character (UTF-8)
-	var prevByte byte = 0
+	var ch []byte         // store bytes to check if they make valid UTF-8 character
+	var prevByte byte = 0 // tracks previous byte to detect word or not
 	var SPACE_BYTES = []byte{
 		'\t',
 		'\n',
@@ -98,6 +101,7 @@ func main() {
 		for {
 			_, err = f.Read(container)
 			if err == io.EOF {
+				// the last word ending with EOF
 				if prevByte != 0 && !bytes.Contains(
 					SPACE_BYTES,
 					[]byte{prevByte},
@@ -136,16 +140,16 @@ func main() {
 			prevByte = container[0]
 		}
 
-		if noFlag || hasByteFlag {
+		if hasByteFlag {
 			fmt.Printf("c:%d ", bytesCnt)
 		}
 		if hasCharacterFlag {
 			fmt.Printf("m:%d ", charsCnt)
 		}
-		if noFlag || hasWordFlag {
+		if hasWordFlag {
 			fmt.Printf("w:%d ", wordsCnt)
 		}
-		if noFlag || hasLineFlag {
+		if hasLineFlag {
 			fmt.Printf("l:%d ", linesCnt)
 		}
 
@@ -201,16 +205,16 @@ func main() {
 			prevByte = container[0]
 		}
 
-		if noFlag || hasByteFlag {
+		if hasByteFlag {
 			fmt.Printf("c:%d ", bytesCnt)
 		}
 		if hasCharacterFlag {
 			fmt.Printf("m:%d ", charsCnt)
 		}
-		if noFlag || hasWordFlag {
+		if hasWordFlag {
 			fmt.Printf("w:%d ", wordsCnt)
 		}
-		if noFlag || hasLineFlag {
+		if hasLineFlag {
 			fmt.Printf("l:%d ", linesCnt)
 		}
 
