@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -41,9 +42,27 @@ func main() {
 			wordsCnt,
 			linesCnt uint64
 		var ch []byte // single or multi-byte character (UTF-8)
+		var prevByte byte = 0
+		var SPACE_BYTES = []byte{
+			'\t',
+			'\n',
+			'\v',
+			'\f',
+			'\r',
+			' ',
+			133, // NEW LINE
+			160, // NO-BREAK SPACE
+		}
 		for {
 			_, err = f.Read(container)
 			if err == io.EOF {
+				if prevByte != 0 && !bytes.Contains(
+					SPACE_BYTES,
+					[]byte{prevByte},
+				) {
+					wordsCnt += 1
+				}
+
 				break
 			} else if err != nil {
 				fmt.Printf("Error encountered while scanning the file: %s\n", err)
@@ -58,13 +77,21 @@ func main() {
 				ch = []byte{}
 			}
 
-			if container[0] == ' ' {
+			if prevByte != 0 && !bytes.Contains(
+				SPACE_BYTES,
+				[]byte{prevByte},
+			) && bytes.Contains(
+				SPACE_BYTES,
+				container,
+			) {
 				wordsCnt += 1
 			}
 
 			if container[0] == '\n' {
 				linesCnt += 1
 			}
+
+			prevByte = container[0]
 		}
 
 		if slices.Contains(options, "-c") {
